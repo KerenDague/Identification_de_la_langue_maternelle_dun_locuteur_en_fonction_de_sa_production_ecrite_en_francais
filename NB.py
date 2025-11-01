@@ -20,7 +20,7 @@ from sklearn.metrics import classification_report, accuracy_score, confusion_mat
 import time
 
 # Configuration
-FILE_PATH = 'cleanB1.csv'
+FILE_PATH = 'cleanall.csv'
 TEXT_COLUMN = 'Texte'
 LABEL_COLUMN = 'Langue'
 OUTPUT_IMAGE_NAME = 'matrice_confusion_nb.png'
@@ -46,14 +46,16 @@ def load_data(file_path, text_col, label_col):
 def build_nb_pipeline():
     # construire le pipeline TF-IDF + Naive Bayes
     vectorizer = TfidfVectorizer(
-        analyzer='char_wb',
-        ngram_range=(3, 5),   # N-grammes de 3 à 5 caracteres
-        max_features=None,
+        analyzer='char',  #MODIFICATION : n-grammes de caractères, partout, y compris à travers les espaces
+        ngram_range=(3, 6),  
+        max_features=50000, 
         sublinear_tf=True
     )
     
-    classifier = MultinomialNB(alpha=0.1) 
-    
+    classifier = MultinomialNB(
+        alpha=0.1,
+        fit_prior=False   #MODIFICATON : SVM prend en compte que les classes ne sont pas équilibrées
+    )
     pipeline = Pipeline([
         ('tfidf', vectorizer),
         ('nb', classifier)

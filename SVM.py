@@ -9,7 +9,7 @@ from sklearn.metrics import classification_report, accuracy_score, confusion_mat
 import time
 
 # Configuration
-FILE_PATH = 'cleanB1.csv'
+FILE_PATH = 'cleanall.csv'
 TEXT_COLUMN = 'Texte'
 LABEL_COLUMN = 'Langue'
 OUTPUT_IMAGE_NAME = 'matrice_confusion_svm.png'
@@ -35,11 +35,9 @@ def load_data(file_path, text_col, label_col):
 def build_svm_pipeline():
     # Étape 1 : Vectoriseur TF-IDF => N-grammes de caractères
     vectorizer = TfidfVectorizer(
-        analyzer='char_wb',
-        ngram_range=(3, 5),      # Combine les n-grammes de 3, 4 et 5 caractères
-        
-        # On n'impose pas de limite au nombre de features. Le modèle utilisera tous les n-grammes trouvés.
-        max_features=None,       
+        analyzer='char', #MODIFICATION : n-grammes de caractères, partout, y compris à travers les espaces
+        ngram_range=(3, 6),
+        max_features=50000,
         sublinear_tf=True
     )
     
@@ -47,7 +45,8 @@ def build_svm_pipeline():
     classifier = SVC(
         kernel='linear',
         C=1.0,
-        random_state=42
+        random_state=42,
+        class_weight='balanced' #MODIFICATON : SVM prend en compte que les classes ne sont pas équilibrées
     )
 
     # Création du Pipeline
