@@ -54,7 +54,7 @@ def build_nb_pipeline():
     
     classifier = MultinomialNB(
         alpha=0.1,
-        fit_prior=False   #MODIFICATON : SVM prend en compte que les classes ne sont pas équilibrées
+        fit_prior=False   #MODIFICATON : NB prend en compte que les classes ne sont pas équilibrées
     )
     pipeline = Pipeline([
         ('tfidf', vectorizer),
@@ -130,3 +130,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
