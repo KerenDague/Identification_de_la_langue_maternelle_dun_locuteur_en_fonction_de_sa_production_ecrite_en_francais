@@ -35,4 +35,4 @@ lds)
 
 - [Keren DAGUE](https://github.com/KerenDague)
 - [Juliette HENRY](https://github.com/juliettehnr)
-- Inès
+- [Inès MARTINS](https://github.com/Inesmartins1912)
