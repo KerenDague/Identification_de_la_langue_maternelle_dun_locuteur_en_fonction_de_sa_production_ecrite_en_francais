@@ -3,8 +3,8 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.svm import SVC
 from sklearn.pipeline import Pipeline
 from sklearn.metrics import classification_report, accuracy_score, confusion_matrix
 import time
@@ -12,7 +12,7 @@ import time
 # Configuration
 TEXT_COLUMN = 'Texte'
 LABEL_COLUMN = 'Langue'
-OUTPUT_IMAGE_NAME = 'matrice_confusion_svm.png'
+OUTPUT_IMAGE_NAME = 'matrice_confusion_rf.png'
 
 
 def load_data(file_path, text_col, label_col):
@@ -23,70 +23,65 @@ def load_data(file_path, text_col, label_col):
         return None, None
 
     df = df.dropna(subset=[text_col, label_col])
-    
+
     X = df[text_col]
     y = df[label_col]
-    
+
     print(f"Données chargées : {len(df)} échantillons.")
-    print(f"Nombre de classes (L1) : {y.nunique()}")
+    print(f"Nombre de classes : {y.nunique()}")
     return X, y
 
 
-def build_svm_pipeline():
-    # Étape 1 : Vectoriseur TF-IDF => N-grammes de caractères
+def build_rf_pipeline():
+    # construire le pipeline TF-IDF + Random Forest
     vectorizer = TfidfVectorizer(
-        analyzer='char', #MODIFICATION : n-grammes de caractères, partout, y compris à travers les espaces
-        ngram_range=(3, 6),
-        max_features=50000,
+        analyzer='char_wb',
+        ngram_range=(3, 5),   # N-grammes de 3 à 5 caracteres
+        max_features=None,
         sublinear_tf=True
     )
-    
-    # Étape 2 : Classifieur SVM
-    classifier = SVC(
-        kernel='linear',
-        C=1.0,
-        random_state=42,
-        class_weight='balanced' #MODIFICATON : SVM prend en compte que les classes ne sont pas équilibrées
-    )
 
-    # Création du Pipeline
+    classifier = RandomForestClassifier(
+        class_weight='balanced',
+        )
+
     pipeline = Pipeline([
         ('tfidf', vectorizer),
-        ('svm', classifier)
+        ('rf', classifier)
     ])
-    
+
     return pipeline
 
 
 def plot_confusion_matrix(y_true, y_pred, labels, filename):
     print(f"Génération de la matrice de confusion visuelle...")
     cm = confusion_matrix(y_true, y_pred, labels=labels)
-    
+
     cm_df = pd.DataFrame(cm, index=labels, columns=labels)
-    plt.figure(figsize=(12, 10)) 
-    
+    plt.figure(figsize=(12, 10))
+
     sns.heatmap(
         cm_df,
         annot=True,
         fmt='d',
-        cmap='Blues',
+        cmap='Reds',
         linewidths=.5
     )
-    
-    plt.title('Matrice de Confusion-SVM', fontsize=16)
+
+    plt.title('Matrice de Confusion - Random Forest', fontsize=16)
     plt.ylabel('Vraie Langue (True Label)', fontsize=12)
     plt.xlabel('Langue Prédite (Predicted Label)', fontsize=12)
-    plt.xticks(rotation=45) 
+    plt.xticks(rotation=45)
     plt.yticks(rotation=0)
-    plt.tight_layout() 
+    plt.tight_layout()
+
     try:
         plt.savefig(filename)
         print(f"Matrice de confusion enregistrée sous : '{filename}'")
     except Exception as e:
         print(f"Erreur lors de l'enregistrement de l'image : {e}")
-        
-        
-    
+
+
 def main():
 
     # 1. Créer un parser pour entrer le nom du fichier à traiter
@@ -101,11 +96,11 @@ def main():
     if X is None:
         return
 
-    # 3. Séparer les données
+    # 3. Séparer les données en train/test
     labels = sorted(y.unique())
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, 
-        test_size=0.2, # meilleurs résultats avec 0.20
+        X, y,
+        test_size=0.15, # meilleurs résultats avec une taille 0.15
         random_state=42,
         stratify=y
     )
@@ -113,21 +108,22 @@ def main():
     print("-" * 30)
 
     # 4. Construire et entraîner le pipeline
-    svm_model = build_svm_pipeline()
+    rf_model = build_rf_pipeline()
     print("Début de l'entraînement...")
     start_time = time.time()
-    svm_model.fit(X_train, y_train)
+    rf_model.fit(X_train, y_train)
     print(f"Entraînement terminé en {time.time() - start_time:.2f} secondes.")
 
     # 5. Évaluer le modèle
     print("Évaluation du modèle...")
-    y_pred = svm_model.predict(X_test)
+    y_pred = rf_model.predict(X_test)
 
-    # 6. Afficher les résultats (texte)
+    # 6. Résultats
     accuracy = accuracy_score(y_test, y_pred)
     print(f"Accuracy : {accuracy * 100:.2f}%\n")
     print(classification_report(y_test, y_pred, digits=3))
     plot_confusion_matrix(y_test, y_pred, labels, OUTPUT_IMAGE_NAME)
+
 
 if __name__ == "__main__":
     main()

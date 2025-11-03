@@ -8,7 +8,7 @@ Ce script permet de prédire automatiquement la langue d’un texte à partir d�
 5. Génération et sauvegarde d’une matrice de confusion pour visualiser les prédictions
 
 """
-
+import argparse
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -20,7 +20,6 @@ from sklearn.metrics import classification_report, accuracy_score, confusion_mat
 import time
 
 # Configuration
-FILE_PATH = 'cleanall.csv'
 TEXT_COLUMN = 'Texte'
 LABEL_COLUMN = 'Langue'
 OUTPUT_IMAGE_NAME = 'matrice_confusion_nb.png'
@@ -94,34 +93,42 @@ def plot_confusion_matrix(y_true, y_pred, labels, filename):
 
 
 def main():
-    # 1. Charger les données
+
+    # 1. Créer un parser pour entrer le nom du fichier à traiter
+    parser = argparse.ArgumentParser(description="Choix d'une table CSV")
+    parser.add_argument("-f", "--fichierCSV", help="Entrez le nom du fichier CSV")
+    args = parser.parse_args()
+
+    FILE_PATH = args.fichierCSV
+
+    # 2. Charger les données
     X, y = load_data(FILE_PATH, TEXT_COLUMN, LABEL_COLUMN)
     if X is None:
         return
 
-    # 2. Separer les données
+    # 3. Separer les données
     labels = sorted(y.unique())
     X_train, X_test, y_train, y_test = train_test_split(
         X, y,
-        test_size=0.25,
+        test_size=0.2, # meilleurs résultats avec 0.20
         random_state=42,
         stratify=y
     )
     print(f"Taille de l'entraînement : {len(X_train)}, Taille du test : {len(X_test)}")
     print("-" * 30)
 
-    # 3. Construire et entraîner le pipeline
+    # 4. Construire et entraîner le pipeline
     nb_model = build_nb_pipeline()
     print("Début de l'entraînement...")
     start_time = time.time()
     nb_model.fit(X_train, y_train)
     print(f"Entraînement terminé en {time.time() - start_time:.2f} secondes.")
 
-    # 4. Évaluer le modèle
+    # 5. Évaluer le modèle
     print("Évaluation du modèle...")
     y_pred = nb_model.predict(X_test)
 
-    # 5. Résultats
+    # 6. Résultats
     accuracy = accuracy_score(y_test, y_pred)
     print(f"Accuracy : {accuracy * 100:.2f}%\n")
     print(classification_report(y_test, y_pred, digits=3))
@@ -130,4 +137,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
