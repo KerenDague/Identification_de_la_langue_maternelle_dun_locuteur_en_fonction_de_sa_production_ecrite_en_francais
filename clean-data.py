@@ -2,6 +2,8 @@
 Script de nettoyage et de préparation du corpus pour le classifieur.
 
 - Supprime toutes les balises HTML présentes dans un fichier CSV
+- Supprime les bruits dans les textes types 'Chine', 'Japonais' qui pourraient influencer nos classifieurs
+- Supprime les langues que l'on ne va pas analyser'
 - Produit un fichier CSV nettoyé
 """
 
