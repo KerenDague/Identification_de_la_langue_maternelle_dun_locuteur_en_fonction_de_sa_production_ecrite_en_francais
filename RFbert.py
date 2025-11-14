@@ -103,7 +103,7 @@ def plot_confusion_matrix(y_true, y_pred, labels, filename):
     plt.xticks(rotation=45)
     plt.yticks(rotation=0)
     plt.tight_layout()
-     try:
+    try:
         plt.savefig(filename)
         print(f"Matrice de confusion enregistrée sous : '{filename}'")
     except Exception as e:
