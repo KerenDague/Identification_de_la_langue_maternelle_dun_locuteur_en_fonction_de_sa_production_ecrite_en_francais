@@ -1,169 +1,198 @@
 """
-Script de classification de texte avec Transformers
-Prédit automatiquement la langue d’un texte à partir d’un fichier CSV
+Classification de texte avec modèle Transformer T5.
+
+Ce script permet de prédire automatiquement la langue d’un texte à partir d’un fichier CSV en utilisant un modèle Transformer T5.
+
+Il inclut les étapes suivantes :
+1. Chargement et préparation des données textuelles depuis un fichier CSV
+2. Construction et préparation du modèle T5
+3. Encodage des textes
+4. Entraînement du modèle sur l’ensemble d’entraînement
+5. Prédiction sur l’ensemble de test
+6. Préparation de la matrice de confusion et évaluation des performances (accuracy + classification report)
 """
 
+import argparse
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
-import torch
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report, accuracy_score, confusion_matrix, f1_score
-from transformers import AutoTokenizer, AutoModelForSequenceClassification, Trainer, TrainingArguments
-from datasets import Dataset
+from sklearn.metrics import classification_report, accuracy_score, confusion_matrix
+from transformers import T5Tokenizer, T5ForConditionalGeneration
+from torch.optim import AdamW
+import torch
+import numpy as np
 import time
-import os
-import argparse
 
-# CONFIGURATION
+# Configuration
 TEXT_COLUMN = 'Texte'
 LABEL_COLUMN = 'Langue'
-MODEL_NAME = 'distilbert-base-multilingual-cased'
-OUTPUT_IMAGE_NAME = 'matrice_confusion_transformers.png'
-EPOCHS = 2
-BATCH_SIZE = 8
-MAX_LENGTH = 128
+OUTPUT_IMAGE_NAME = 'matrice_confusion_t5.png'
+MODEL_NAME = "t5-small"
 
+# 1. Chargement des données
 def load_data(file_path, text_col, label_col):
-    if not os.path.exists(file_path):
+    try:
+        df = pd.read_csv(file_path)
+    except FileNotFoundError:
         print(f"ERREUR : Le fichier '{file_path}' n'a pas été trouvé.")
-        return None, None, None
+        return None, None
 
-    df = pd.read_csv(file_path)
     df = df.dropna(subset=[text_col, label_col])
-
-    labels = sorted(df[label_col].unique())
-    label2id = {label: i for i, label in enumerate(labels)}
-    id2label = {i: label for label, i in label2id.items()}
-    df['label'] = df[label_col].map(label2id)
+    X = df[text_col]
+    y = df[label_col]
 
     print(f"Données chargées : {len(df)} échantillons.")
-    print(f"Nombre de classes : {len(labels)}")
-    return df, label2id, id2label
+    print(f"Nombre de classes : {y.nunique()}")
+    return X, y
 
-#Tokenization
-def tokenize_data(df, tokenizer, text_col=TEXT_COLUMN):
-    return tokenizer(
-        df[text_col].tolist(),
-        truncation=True,
-        padding='max_length',
-        max_length=MAX_LENGTH
+# 2. Construction du modèle T5
+def build_model():
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    tokenizer = T5Tokenizer.from_pretrained(MODEL_NAME)
+    model = T5ForConditionalGeneration.from_pretrained(MODEL_NAME)
+    model.to(device)
+
+    optimizer = AdamW(model.parameters(), lr=3e-4)
+
+    return tokenizer, model, optimizer, device
+
+# 3. Encodage des textes
+def encode_batch(tokenizer, texts, labels=None):
+    prompts = ["classify: " + t for t in texts]
+
+    enc_inputs = tokenizer(
+        prompts, return_tensors="pt",
+        padding=True, truncation=True, max_length=128
     )
 
+    if labels is not None:
+        enc_labels = tokenizer(
+            list(labels), return_tensors="pt",
+            padding=True, truncation=True, max_length=5
+        )
+        enc_labels["input_ids"][enc_labels["input_ids"] == tokenizer.pad_token_id] = -100
+        return enc_inputs, enc_labels
 
-# Matrice de confusion
-def plot_confusion_matrix(y_true, y_pred, labels, filename):
-    cm = confusion_matrix(y_true, y_pred, labels=range(len(labels)))
+    return enc_inputs
+
+# 4. Entraînement
+def train_t5(tokenizer, model, optimizer, device, X_train, y_train, epochs=3, batch_size=8):
+    model.train()
+    n = len(X_train)
+
+    for epoch in range(epochs):
+        print(f"\n--- Époque {epoch+1}/{epochs} ---")
+        indices = np.random.permutation(n)
+
+        for i in range(0, n, batch_size):
+            batch_idx = indices[i:i+batch_size]
+
+            texts = X_train.iloc[batch_idx].tolist()
+            labels = y_train.iloc[batch_idx].tolist()
+
+            enc_in, enc_lbl = encode_batch(tokenizer, texts, labels)
+
+            enc_in = {k: v.to(device) for k, v in enc_in.items()}
+            enc_lbl = {k: v.to(device) for k, v in enc_lbl.items()}
+
+            outputs = model(
+                input_ids=enc_in["input_ids"],
+                attention_mask=enc_in["attention_mask"],
+                labels=enc_lbl["input_ids"]
+            )
+
+            loss = outputs.loss
+            loss.backward()
+            optimizer.step()
+            optimizer.zero_grad()
+
+            print(f"Batch {i//batch_size} — Loss : {loss.item():.4f}")
+
+    return model
+
+# 5. Prédiction
+def predict_t5(tokenizer, model, device, texts):
+    model.eval()
+    preds = []
+
+    with torch.no_grad():
+        for text in texts:
+            enc = encode_batch(tokenizer, [text])
+            enc = {k: v.to(device) for k, v in enc.items()}
+
+            out_ids = model.generate(
+                input_ids=enc["input_ids"],
+                attention_mask=enc["attention_mask"],
+                max_length=5
+            )
+
+            pred = tokenizer.decode(out_ids[0], skip_special_tokens=True)
+            preds.append(pred)
+
+    return preds
+
+# 6. Matrice de confusion et évaluation
+def plot_confusion_matrix(y_true, y_pred, labels, filename, model_name):
+    print("Génération de la matrice de confusion visuelle...")
+
+    cm = confusion_matrix(y_true, y_pred, labels=labels)
     cm_df = pd.DataFrame(cm, index=labels, columns=labels)
 
     plt.figure(figsize=(12, 10))
-    sns.heatmap(cm_df, annot=True, fmt='d', cmap='Purples', linewidths=.5)
-    plt.title('Matrice de Confusion - Transformers', fontsize=16)
-    plt.ylabel('Vraie Langue', fontsize=12)
-    plt.xlabel('Langue Prédite', fontsize=12)
+    sns.heatmap(cm_df, annot=True, fmt="d", cmap="Greys", linewidths=.5)
+
+    plt.title(f"Matrice de Confusion - Transformer T5", fontsize=16)
+    plt.ylabel("Vraie Langue")
+    plt.xlabel("Langue Prédite")
     plt.xticks(rotation=45)
-    plt.yticks(rotation=0)
     plt.tight_layout()
+
     plt.savefig(filename)
-    print(f"Matrice de confusion enregistrée sous : '{filename}'")
+    print(f"Matrice enregistrée sous : {filename}")
 
-
-# Fonction de métriques
-def compute_metrics(eval_pred):
-    predictions, labels = eval_pred
-    preds = predictions.argmax(axis=1)
-    acc = accuracy_score(labels, preds)
-    f1 = f1_score(labels, preds, average='weighted')
-    return {"accuracy": acc, "f1": f1}
-
-
+# Main
 def main():
-
-    # Parser pour choisir le fichier CSV
-    parser = argparse.ArgumentParser(description="Choix d'une table CSV")
-    parser.add_argument("-f", "--fichierCSV", help="Entrez le nom du fichier CSV")
+    parser = argparse.ArgumentParser(description="Classification T5")
+    parser.add_argument("-f", "--fichierCSV", help="Nom du fichier CSV")
     args = parser.parse_args()
+
     FILE_PATH = args.fichierCSV
 
-    # 1. Chargement des données
-    df, label2id, id2label = load_data(FILE_PATH, TEXT_COLUMN, LABEL_COLUMN)
-    if df is None:
+    X, y = load_data(FILE_PATH, TEXT_COLUMN, LABEL_COLUMN)
+    if X is None:
         return
 
-    # 2. Split train/test
-    train_df, test_df = train_test_split(
-        df, test_size=0.25, random_state=42, stratify=df['label']
-    )
-    print(f"Taille de l'entraînement : {len(train_df)}, Taille du test : {len(test_df)}")
+    labels = sorted(y.unique())
 
-    # 3. Tokenization
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-    train_encodings = tokenize_data(train_df, tokenizer)
-    test_encodings = tokenize_data(test_df, tokenizer)
-
-    train_dataset = Dataset.from_dict({
-        'input_ids': train_encodings['input_ids'],
-        'attention_mask': train_encodings['attention_mask'],
-        'labels': train_df['label'].tolist()
-    })
-    test_dataset = Dataset.from_dict({
-        'input_ids': test_encodings['input_ids'],
-        'attention_mask': test_encodings['attention_mask'],
-        'labels': test_df['label'].tolist()
-    })
-
-    # 4. Charger le modèle
-    model = AutoModelForSequenceClassification.from_pretrained(
-        MODEL_NAME,
-        num_labels=len(label2id),
-        id2label=id2label,
-        label2id=label2id
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.15, random_state=42, stratify=y
     )
 
-    # 5. Entraînement
-    training_args = TrainingArguments(
-        output_dir='./results',
-        eval_strategy='epoch',
-        save_strategy='epoch',
-        per_device_train_batch_size=BATCH_SIZE,
-        per_device_eval_batch_size=BATCH_SIZE,
-        num_train_epochs=EPOCHS,
-        logging_dir='./logs',
-        logging_steps=50,
-        report_to='none',
-        load_best_model_at_end=True,
-        metric_for_best_model='eval_accuracy'
-    )
+    print(f"Taille de l'entraînement : {len(X_train)}, Taille du test : {len(X_test)}")
+    print("-" * 30)
 
-    trainer = Trainer(
-        model=model,
-        args=training_args,
-        train_dataset=train_dataset,
-        eval_dataset=test_dataset,
-        tokenizer=tokenizer,
-        compute_metrics=compute_metrics
-    )
+    tokenizer, model, optimizer, device = build_model()
 
     print("Début de l'entraînement...")
     start_time = time.time()
-    trainer.train()
+    model = train_t5(tokenizer, model, optimizer, device, X_train, y_train)
     print(f"Entraînement terminé en {time.time() - start_time:.2f} secondes.")
 
-    # 6. Évaluation
-    print("Évaluation du modèle...")
-    predictions = trainer.predict(test_dataset)
-    y_pred = predictions.predictions
-    if isinstance(y_pred, tuple):
-        y_pred = y_pred[0]
-    y_pred = y_pred.argmax(axis=1)
-    y_true = test_df['label'].tolist()
+    print("\nPrédiction...")
+    y_pred = predict_t5(tokenizer, model, device, X_test)
 
-    accuracy = accuracy_score(y_true, y_pred)
-    print(f"\nAccuracy : {accuracy*100:.2f}%\n")
-    print(classification_report(y_true, y_pred, target_names=list(label2id.keys()), digits=3))
+    accuracy = accuracy_score(y_test, y_pred)
+    print(f"\nAccuracy : {accuracy * 100:.2f}%\n")
+    print(classification_report(y_test, y_pred, digits=3))
 
-    # 7. Matrice de confusion
-    plot_confusion_matrix(y_true, y_pred, list(label2id.keys()), OUTPUT_IMAGE_NAME)
+    plot_confusion_matrix(
+        y_test, y_pred, labels,
+        OUTPUT_IMAGE_NAME,
+        MODEL_NAME
+    )
+
 
 if __name__ == "__main__":
     main()

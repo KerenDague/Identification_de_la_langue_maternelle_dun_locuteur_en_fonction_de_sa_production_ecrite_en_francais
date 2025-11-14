@@ -1,8 +1,8 @@
 """
 Classification de texte avec BERT et RNN (RNN/GRU/LSTM).
 
-Ce script permet de prédire automatiquement la langue d’un texte à partir d’un fichier CSV
-en utilisant des embeddings BERT comme entrée d’un réseau récurrent (RNN, GRU ou LSTM au choix en ligne de commande).
+Ce script permet de prédire automatiquement la langue d’un texte à partir d’un fichier CSV en utilisant des embeddings BERT comme entrée d’un réseau récurrent (RNN, GRU ou LSTM au choix en ligne de commande).
+
 Il inclut les étapes suivantes :
 1. Chargement et préparation des données textuelles depuis un fichier CSV
 2. Séparation en ensembles d’entraînement et de test (train/test split)
@@ -135,7 +135,7 @@ def plot_confusion_matrix(y_true, y_pred, labels, filename, rnn_type):
 def main():
     parser = argparse.ArgumentParser(description="Classification TF-IDF + RNN")
     parser.add_argument("-f", "--fichierCSV", help="Nom du fichier CSV")
-    parser.add_argument("-r", "--rnn_type", choices=['rnn','gru','lstm'], default='gru',
+    parser.add_argument("-r", "--rnn_type", choices=['simple','gru','lstm'], default='gru',
                         help="Type de RNN à utiliser : 'rnn', 'gru' ou 'lstm'")
     args = parser.parse_args()
 
