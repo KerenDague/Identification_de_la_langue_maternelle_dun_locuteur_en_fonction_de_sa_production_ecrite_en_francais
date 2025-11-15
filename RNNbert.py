@@ -1,8 +1,8 @@
 """
 Classification de texte avec BERT et RNN (RNN/GRU/LSTM).
 
-Ce script permet de prédire automatiquement la langue d’un texte à partir d’un fichier CSV en utilisant des embeddings BERT comme entrée d’un réseau récurrent (RNN, GRU ou LSTM au choix en ligne de commande).
-
+Ce script permet de prédire automatiquement la langue d’un texte à partir d’un fichier CSV
+en utilisant des embeddings BERT comme entrée d’un réseau récurrent (RNN, GRU ou LSTM au choix en ligne de commande).
 Il inclut les étapes suivantes :
 1. Chargement et préparation des données textuelles depuis un fichier CSV
 2. Séparation en ensembles d’entraînement et de test (train/test split)
@@ -53,14 +53,14 @@ class TextDataset(Dataset):
 class RNNClassifier(nn.Module):
     def __init__(self, input_size, hidden_size, num_classes, rnn_type='rnn'):
         super(RNNClassifier, self).__init__()
-        if rnn_type == 'rnn':
+        if rnn_type == 'simple':
             self.rnn = nn.RNN(input_size, hidden_size, batch_first=True)
         elif rnn_type == 'gru':
             self.rnn = nn.GRU(input_size, hidden_size, batch_first=True)
         elif rnn_type == 'lstm':
             self.rnn = nn.LSTM(input_size, hidden_size, batch_first=True)
         else:
-            raise ValueError("rnn_type doit être 'rnn', 'gru' ou 'lstm'")
+            raise ValueError("rnn_type doit être 'simple', 'gru' ou 'lstm'")
         self.fc = nn.Linear(hidden_size, num_classes)
         self.rnn_type = rnn_type
 
