@@ -92,7 +92,7 @@ def plot_confusion_matrix(y_true, y_pred, labels, filename, rnn_type):
     cm = confusion_matrix(y_true, y_pred, labels=labels_int)
     cm_df = pd.DataFrame(cm, index=labels, columns=labels)
     plt.figure(figsize=(12, 10))
-    sns.heatmap(cm_df, annot=True, fmt='d', cmap='Reds', linewidths=.5)
+    sns.heatmap(cm_df, annot=True, fmt='d', cmap='Purples', linewidths=.5)
     plt.title(f'Matrice de Confusion - TF-IDF + {rnn_type.upper()}', fontsize=16)
     plt.ylabel('Vraie Langue', fontsize=12)
     plt.xlabel('Langue Prédite', fontsize=12)
