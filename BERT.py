@@ -144,7 +144,7 @@ def plot_confusion_matrix(y_true, y_pred, labels, filename, model_name):
 
 # Main
 def main():
-    parser = argparse.ArgumentParser(description="Classification BERT-like")
+    parser = argparse.ArgumentParser(description="Classification BERT")
     parser.add_argument("-f", "--fichierCSV", required=True, help="Nom du fichier CSV")
     parser.add_argument("-m", "--modele", choices=["flaubert", "camembert", "roberta"], default="camembert",
                         help="Modèle à utiliser : flaubert, camembert, roberta")
