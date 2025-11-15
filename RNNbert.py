@@ -120,7 +120,7 @@ def plot_confusion_matrix(y_true, y_pred, labels, filename, rnn_type):
     cm_df = pd.DataFrame(cm, index=labels, columns=labels)
     plt.figure(figsize=(12, 10))
     sns.heatmap(cm_df, annot=True, fmt='d', cmap='Purples', linewidths=.5)
-    plt.title(f'Matrice de Confusion - TF-IDF + {rnn_type.upper()}', fontsize=16)
+    plt.title(f'Matrice de Confusion - Bert + {rnn_type.upper()}', fontsize=16)
     plt.ylabel('Vraie Langue', fontsize=12)
     plt.xlabel('Langue Prédite', fontsize=12)
     plt.xticks(rotation=45)
@@ -133,7 +133,7 @@ def plot_confusion_matrix(y_true, y_pred, labels, filename, rnn_type):
         print(f"Erreur lors de l'enregistrement de l'image : {e}")
 
 def main():
-    parser = argparse.ArgumentParser(description="Classification TF-IDF + RNN")
+    parser = argparse.ArgumentParser(description="Classification Bert + RNN")
     parser.add_argument("-f", "--fichierCSV", help="Nom du fichier CSV")
     parser.add_argument("-r", "--rnn_type", choices=['simple','gru','lstm'], default='gru',
                         help="Type de RNN à utiliser : 'rnn', 'gru' ou 'lstm'")
