@@ -7,7 +7,7 @@ Il inclut les étapes suivantes :
 2. Séparation en ensembles d’entrainement et de test (train/test split)
 3. Construction d’un pipeline : TfidfVectorizer : transforme les textes en vecteurs TF-IDF de n-grammes de caractères;  SVM linéaire : classifieur prenant en compte les déséquilibres de classes
 4. Entraînement du modele sur l'ensemble d'entraînement
-5. Évaluation des performances sur l'ensemble de test 
+5. Évaluation des performances sur l'ensemble de test
 6. Génération et sauvegarde d’une matrice de confusion
 
 """
@@ -17,7 +17,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.svm import SVC
+from sklearn.svm import LinearSVC
 from sklearn.pipeline import Pipeline
 from sklearn.metrics import classification_report, accuracy_score, confusion_matrix
 import time
@@ -36,10 +36,10 @@ def load_data(file_path, text_col, label_col):
         return None, None
 
     df = df.dropna(subset=[text_col, label_col])
-    
+
     X = df[text_col]
     y = df[label_col]
-    
+
     print(f"Données chargées : {len(df)} échantillons.")
     print(f"Nombre de classes (L1) : {y.nunique()}")
     return X, y
@@ -47,32 +47,33 @@ def load_data(file_path, text_col, label_col):
 
 def build_svm_pipeline():
     vectorizer = TfidfVectorizer(
-        analyzer='char', #MODIFICATION : n-grammes de caractères, partout, y compris à travers les espaces
-        ngram_range=(3, 6),
-        max_features=50000,
-        sublinear_tf=True
+        analyzer='char',
+        ngram_range=(1, 9),     # OPTIMISATION
+        lowercase=True,
+        sublinear_tf=True,      # OPTIMISATION : plus stable que False
+        min_df=2                # OPTIMISATION : réduit le bruit
     )
-    classifier = SVC(
-        kernel='linear',
-        C=1.0,
-        random_state=42,
-        class_weight='balanced' #MODIFICATON : SVM prend en compte que les classes ne sont pas équilibrées
+
+    classifier = LinearSVC(
+        C=0.5,                   # OPTIMISATION : meilleur compromis général
+        class_weight='balanced'
     )
+
     pipeline = Pipeline([
         ('tfidf', vectorizer),
         ('svm', classifier)
     ])
-    
     return pipeline
+
 
 
 def plot_confusion_matrix(y_true, y_pred, labels, filename):
     print(f"Génération de la matrice de confusion visuelle...")
     cm = confusion_matrix(y_true, y_pred, labels=labels)
-    
+
     cm_df = pd.DataFrame(cm, index=labels, columns=labels)
-    plt.figure(figsize=(12, 10)) 
-    
+    plt.figure(figsize=(12, 10))
+
     sns.heatmap(
         cm_df,
         annot=True,
@@ -80,20 +81,20 @@ def plot_confusion_matrix(y_true, y_pred, labels, filename):
         cmap='Blues',
         linewidths=.5
     )
-    
+
     plt.title('Matrice de Confusion-SVM', fontsize=16)
     plt.ylabel('Vraie Langue (True Label)', fontsize=12)
     plt.xlabel('Langue Prédite (Predicted Label)', fontsize=12)
-    plt.xticks(rotation=45) 
+    plt.xticks(rotation=45)
     plt.yticks(rotation=0)
-    plt.tight_layout() 
+    plt.tight_layout()
 
     try:
         plt.savefig(filename)
         print(f"Matrice de confusion enregistrée sous : '{filename}'")
     except Exception as e:
         print(f"Erreur lors de l'enregistrement de l'image : {e}")
-        
+
 def main():
 
     # 1. Créer un parser pour entrer le nom du fichier à traiter
@@ -111,7 +112,7 @@ def main():
     # 3. Séparer les données
     labels = sorted(y.unique())
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, 
+        X, y,
         test_size=0.2, # meilleurs résultats avec 0.20
         random_state=42,
         stratify=y
