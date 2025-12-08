@@ -1,7 +1,7 @@
 """
 Classification de texte avec modèle Transformer T5.
 
-Ce script permet de prédire automatiquement la langue d’un texte à partir d’un fichier CSV en utilisant un modèle Transformer T5.
+Ce script permet de prédire la langue maternelle (L1) d'un locuteur à partir d'un texte écrit en français (L2) à l'aide d'un Transformer T5.
 
 Il inclut les étapes suivantes :
 1. Chargement et préparation des données textuelles depuis un fichier CSV
