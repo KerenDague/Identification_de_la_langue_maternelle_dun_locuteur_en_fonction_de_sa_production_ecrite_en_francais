@@ -30,6 +30,7 @@ Le corpus contient :
    - Trois types de BERT : CamemBERT, FlauBERT & XLM-RoBERTA
 
 ### 📊 Nos meilleurs résultats pour chaque modèle :
+
 1. - Naives Bayes & TF-IDF = 56,94% d’ accuracy
    - Random Forest & TF-IDF = 48,23 % d’ accuracy
    - SVM & TF-IDF + features = 65,99% d’ accuracy
